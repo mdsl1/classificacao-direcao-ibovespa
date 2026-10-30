@@ -372,6 +372,246 @@ Isso ajuda a explicar a forte concentração de previsões na classe ALTA.
 
 ---
 
+# Atualização dos resultados dos modelos
+
+## 1. Regressão Logística — Threshold de 55%
+
+Após a avaliação da Regressão Logística utilizando o threshold padrão de 50%, foi realizado um experimento alterando o threshold de decisão para **55%**.
+
+O objetivo desse teste não foi buscar uma configuração definitiva, mas observar como o comportamento do modelo seria alterado ao exigir uma probabilidade maior para classificar uma observação como **ALTA**.
+
+### Matriz de confusão
+
+```text
+[[249  34]
+ [260  50]]
+```
+
+Interpretação:
+
+- **TN = 249** — previu QUEDA e era QUEDA;
+- **FP = 34** — previu ALTA, mas era QUEDA;
+- **FN = 260** — previu QUEDA, mas era ALTA;
+- **TP = 50** — previu ALTA e era ALTA.
+
+### Métricas
+
+| Métrica | Resultado |
+|---|---:|
+| Balanced Accuracy | 52,06% |
+| Precision (ALTA) | 59,52% |
+| Recall (ALTA) | 16,13% |
+| F1 (ALTA) | 25,38% |
+
+### Interpretação
+
+O aumento do threshold tornou o modelo **muito mais conservador ao classificar ALTA**.
+
+Isso pode ser observado pela redução expressiva dos falsos positivos:
+
+- FP: **267 → 34**
+
+Ao mesmo tempo, houve um grande aumento dos falsos negativos:
+
+- FN: **12 → 260**
+
+Consequentemente, a precisão das previsões de ALTA aumentou, passando de aproximadamente 52,74% no threshold padrão para **59,52%**. Entretanto, o recall caiu drasticamente para **16,13%**, pois o modelo passou a deixar de identificar grande parte das situações que realmente terminaram em ALTA.
+
+A Balanced Accuracy foi de **50,89%** no threshold padrão para **52,06%** com threshold de 55%.
+
+O experimento demonstrou, portanto, que alterar o threshold modifica significativamente o comportamento do modelo e estabelece um trade-off entre **precision e recall**. O threshold de 55% não foi adotado como configuração definitiva, sendo utilizado apenas como experimento para compreender o comportamento da classificação.
+
+---
+
+# 2. Árvore de Decisão — Configuração padrão
+
+O segundo modelo desenvolvido foi uma **Árvore de Decisão**, inicialmente sem restrição explícita de profundidade.
+
+```python
+DecisionTreeClassifier(
+    random_state=42
+)
+```
+
+### Estrutura aprendida
+
+A árvore apresentou:
+
+- **Profundidade:** 26
+- **Folhas:** 719
+- **Nós:** 1.437
+
+A estrutura revelou um modelo bastante complexo, composto por diversas regras de decisão.
+
+A primeira divisão da árvore utilizou `Retorno_10d`, indicando que essa variável foi considerada inicialmente relevante para separar as classes.
+
+### Importância das variáveis
+
+| Feature | Importância |
+|---|---:|
+| Amplitude_Diaria | 0,196853 |
+| Retorno_10d | 0,188106 |
+| Volatilidade_5d | 0,186984 |
+| Media_Retorno_5d | 0,112692 |
+| Retorno_5d | 0,110377 |
+| Retorno_Diario | 0,102975 |
+| Variacao_Intradiaria | 0,102014 |
+
+As três variáveis com maior importância foram:
+
+1. `Amplitude_Diaria`;
+2. `Retorno_10d`;
+3. `Volatilidade_5d`.
+
+É importante destacar que essas importâncias não representam pesos equivalentes aos coeficientes da Regressão Logística. Na árvore, elas representam a contribuição das variáveis para as divisões realizadas ao longo da estrutura.
+
+### Probabilidades
+
+A árvore apresentou probabilidades frequentemente extremas, como:
+
+```text
+[0.0, 1.0]
+```
+
+Isso ocorre porque as probabilidades da Árvore de Decisão são calculadas a partir da distribuição das classes nas folhas. Em folhas nas quais todas as observações de treinamento pertencem à mesma classe, o modelo retorna uma probabilidade de 100% para aquela classe.
+
+Essas probabilidades não devem ser interpretadas como uma certeza real de que o Ibovespa subirá ou cairá.
+
+### Matriz de confusão
+
+```text
+[[136 147]
+ [131 179]]
+```
+
+- **TN = 136**
+- **FP = 147**
+- **FN = 131**
+- **TP = 179**
+
+### Métricas
+
+| Métrica | Resultado |
+|---|---:|
+| Balanced Accuracy | **52,90%** |
+| Precision (ALTA) | 54,91% |
+| Recall (ALTA) | 57,74% |
+| F1 (ALTA) | 56,29% |
+
+### Interpretação
+
+A Árvore de Decisão apresentou desempenho superior ao da Regressão Logística com threshold padrão e também ao Majority Baseline, alcançando **52,90% de Balanced Accuracy**.
+
+Seu comportamento foi mais equilibrado entre as classes do que o observado na Regressão Logística, que apresentou forte tendência a classificar as observações como ALTA.
+
+Apesar disso, a árvore apresentou uma estrutura bastante complexa, com 26 níveis de profundidade e 719 folhas. Essa complexidade levantou a hipótese de que uma árvore menos profunda poderia apresentar melhor capacidade de generalização.
+
+Por esse motivo, foi realizado um experimento limitando sua profundidade.
+
+---
+
+# 3. Árvore de Decisão — `max_depth=3`
+
+Foi criada uma segunda versão da Árvore de Decisão limitando sua profundidade máxima a três níveis:
+
+```python
+DecisionTreeClassifier(
+    max_depth=3,
+    random_state=42
+)
+```
+
+O objetivo foi verificar se uma estrutura mais simples poderia apresentar desempenho igual ou superior ao da árvore original.
+
+### Matriz de confusão
+
+```text
+[[200  83]
+ [185 125]]
+```
+
+- **TN = 200**
+- **FP = 83**
+- **FN = 185**
+- **TP = 125**
+
+### Métricas
+
+| Métrica | Resultado |
+|---|---:|
+| Balanced Accuracy | **55,50%** |
+| Precision (ALTA) | 60,10% |
+| Recall (ALTA) | 40,32% |
+| F1 (ALTA) | 48,26% |
+
+### Comparação com a árvore original
+
+| Métrica | Árvore padrão | `max_depth=3` |
+|---|---:|---:|
+| Balanced Accuracy | 52,90% | **55,50%** |
+| Precision (ALTA) | 54,91% | **60,10%** |
+| Recall (ALTA) | **57,74%** | 40,32% |
+| F1 (ALTA) | **56,29%** | 48,26% |
+
+### Interpretação
+
+A limitação da profundidade produziu um resultado interessante.
+
+Mesmo sendo uma árvore muito mais simples, o modelo apresentou uma **Balanced Accuracy superior**, passando de 52,90% para **55,50%**.
+
+Entretanto, essa melhora ocorreu acompanhada de uma mudança significativa no comportamento do modelo.
+
+A capacidade de identificar corretamente situações de QUEDA aumentou consideravelmente:
+
+- TN: **136 → 200**
+- FP: **147 → 83**
+
+Por outro lado, a capacidade de identificar ALTA diminuiu:
+
+- TP: **179 → 125**
+- FN: **131 → 185**
+
+Consequentemente, o recall da classe ALTA caiu de 57,74% para 40,32%, enquanto a precisão aumentou de 54,91% para 60,10%.
+
+Esse resultado demonstra que a redução da complexidade não tornou o modelo simplesmente "melhor em tudo". Ela alterou sua estratégia de classificação, tornando-o mais conservador na identificação de ALTA.
+
+A melhora da Balanced Accuracy indica, entretanto, que essa troca favoreceu o desempenho balanceado entre as duas classes.
+
+### Observação sobre complexidade e generalização
+
+O resultado também é relevante para a análise de complexidade do modelo. A árvore original possuía 26 níveis de profundidade e apresentou 52,90% de Balanced Accuracy, enquanto uma árvore limitada a apenas 3 níveis alcançou 55,50%.
+
+Isso sugere que uma estrutura extremamente complexa não era necessária para obter o melhor desempenho observado no conjunto de teste. O resultado é compatível com a hipótese de que limitar a complexidade pode favorecer a generalização, embora não seja suficiente, isoladamente, para afirmar a existência de overfitting.
+
+---
+
+# 4. Situação dos modelos até o momento
+
+Considerando a **Balanced Accuracy** como principal métrica de comparação:
+
+| Modelo | Balanced Accuracy |
+|---|---:|
+| Majority Baseline | 50,00% |
+| Logistic Regression — threshold 50% | 50,89% |
+| Logistic Regression — threshold 55% | 52,06% |
+| Persistence Baseline | 52,04% |
+| Decision Tree | 52,90% |
+| **Decision Tree — `max_depth=3`** | **55,50%** |
+
+Até o momento, a **Árvore de Decisão com `max_depth=3` apresenta o melhor desempenho balanceado** entre os modelos e configurações avaliados.
+
+Entretanto, esse resultado ainda não permite concluir que ela será o melhor modelo final do projeto. O **Random Forest** ainda precisa ser treinado e avaliado, mantendo exatamente o mesmo conjunto de teste e as mesmas métricas para permitir uma comparação justa.
+
+## Observação metodológica
+
+Os experimentos realizados até aqui tiveram caráter exploratório e serviram para compreender o comportamento dos modelos.
+
+Não foram realizadas buscas extensivas de hiperparâmetros. Alterações como o threshold de 55% na Regressão Logística e o `max_depth=3` na Árvore de Decisão foram utilizadas principalmente para estudar como mudanças na configuração dos modelos afetam suas previsões e métricas.
+
+A seleção final do modelo deverá considerar o conjunto completo de resultados, incluindo o Random Forest e, posteriormente, a análise dos erros e da importância das variáveis.
+
+---
+
 # 12. Comparação atual
 
 | Modelo | Balanced Accuracy |
@@ -379,7 +619,7 @@ Isso ajuda a explicar a forte concentração de previsões na classe ALTA.
 | Majority Baseline | **50,00%** |
 | Persistence Baseline | **52,04%** |
 | Logistic Regression | **50,89%** |
-| Decision Tree | — |
+| Decision Tree | **52,90%** |
 | Random Forest | — |
 
 ### Situação atual
